@@ -1,0 +1,80 @@
+name: Deploy — EC2 (compose 8001→8000)
+
+on:
+  push:
+    branches: [ "main" ]   # 필요 시 dev 등 추가
+
+permissions:
+  contents: read
+
+env:
+  REMOTE_DIR: "/opt/team_final"              # EC2 배포 경로
+  API_BASE: "http://127.0.0.1:8001"         # 컨테이너를 호스트 8001로 노출 (A안)
+  HEALTH_PATH: "/healthz"                   # 헬스엔드포인트
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create build artifact (source tarball)
+        run: |
+          mkdir -p out
+          tar --exclude='.git' -czf out/team_final-src.tar.gz .
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Create remote dir & upload source
+        run: |
+          ssh -o StrictHostKeyChecking=yes ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo mkdir -p ${REMOTE_DIR} && sudo chown -R ${USER}:${USER} ${REMOTE_DIR}"
+          scp -o StrictHostKeyChecking=yes out/team_final-src.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${REMOTE_DIR}/
+
+      - name: Upload .env (optional; if using ENV_CONTENT secret)
+        if: ${{ secrets.ENV_CONTENT != '' }}
+        run: |
+          # 서버에서 사용할 .env 내용을 Secret으로 전달 (선택)
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cat > ${REMOTE_DIR}/.env" << 'EOF'
+          ${{ secrets.ENV_CONTENT }}
+          EOF
+
+      - name: Deploy on EC2 (compose up -d)
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          set -euo pipefail
+          cd ${REMOTE_DIR}
+          tar -xzf team_final-src.tar.gz
+          # 도커 로그인 등 필요 없고, 서버에 있는 docker-compose.yml 그대로 사용
+          docker compose down || true
+          docker compose up -d --build
+          EOF
+
+      - name: Wait for health
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          set -euo pipefail
+          end=$((SECONDS + 90))
+          URL="http://127.0.0.1:8001${HEALTH_PATH}"
+          echo "Waiting for ${URL} ..."
+          while [ $SECONDS -lt $end ]; do
+            if curl -fsS "$URL" >/dev/null 2>&1; then
+              echo "Health OK"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Health timed out"
+          exit 1
+          EOF
+
+      - name: Print compose ps (debug)
+        if: always()
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cd ${REMOTE_DIR} && docker compose ps"
