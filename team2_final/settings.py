@@ -140,6 +140,25 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Team2 Final API',
+    'DESCRIPTION': 'Workout/Meal Tracking API',
+    'VERSION': '0.1.0',
+}
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'My API',
+    'DESCRIPTION': 'API documentation',
+    'VERSION': '1.0.0',
+}
+
 # JWT 설정
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=365*10),  # 10년
@@ -300,12 +319,6 @@ OAUTH = {
         "ME_URL": "https://openapi.naver.com/v1/nid/me",
         "SCOPE": ["name", "email"],  # 표기는 의미상, 실제는 state 필수
     },
-}
-
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'Team2 Final API',
-    'DESCRIPTION': 'Workout/Meal Tracking API',
-    'VERSION': '0.1.0',
 }
 
 WORKOUT_KCAL_PER_MIN = 5
