@@ -167,13 +167,6 @@ INSTALLED_APPS = [
     "ai",
 ]
 
-if PROM_ENABLED:
-    try:
-        import django_prometheus  # noqa: F401
-
-        INSTALLED_APPS.append("django_prometheus")
-    except Exception:
-        PROM_ENABLED = False  # 모듈 없으면 자동 비활성화
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -220,11 +213,17 @@ MIDDLEWARE = [
 ]
 
 if PROM_ENABLED:
-    MIDDLEWARE = [
-        "django_prometheus.middleware.PrometheusBeforeMiddleware",
-        *MIDDLEWARE,
-        "django_prometheus.middleware.PrometheusAfterMiddleware",
-    ]
+    try:
+        import django_prometheus  # noqa: F401
+
+        INSTALLED_APPS.append("django_prometheus")
+        MIDDLEWARE = [
+            "django_prometheus.middleware.PrometheusBeforeMiddleware",
+            *MIDDLEWARE,
+            "django_prometheus.middleware.PrometheusAfterMiddleware",
+        ]
+    except ImportError:
+        PROM_ENABLED = False  # 모듈 없으면 자동 비활성화
 
 ROOT_URLCONF = "team2_final.urls"
 
@@ -251,7 +250,11 @@ WSGI_APPLICATION = "team2_final.wsgi.application"
 # ─────────────────────────────────────────────────────────────────────────────
 def _pg_host_default() -> str:
     """도커 내부 기본 호스트는 'db', 로컬-도커 교차 시 DOCKER_LOCAL=1이면 host.docker.internal"""
-    return "host.docker.internal" if env_get("DOCKER_LOCAL", "0") == "1" else "db"
+    if IN_DOCKER:
+        return "db"
+    if env_get("DOCKER_LOCAL", "0") == "1":
+        return "host.docker.internal"
+    return "localhost"  # 로컬 개발 환경 기본값
 
 
 def _db_from_url(url: str):
