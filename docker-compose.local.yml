@@ -1,0 +1,49 @@
+# 로컬 개발 전용: 로컬에서 Postgres만 띄우고, 장고는 호스트(맥)에서 실행합니다.
+# 배포 파일과 분리되어 있으므로 프로덕션 파이프라인에는 영향 없습니다.
+
+services:
+  db:
+    image: postgres:16
+    container_name: team2_local_db
+    environment:
+      POSTGRES_DB: team2_final
+      POSTGRES_USER: team2_user
+      POSTGRES_PASSWORD: supersecret
+    ports:
+      - "55432:5432"              # 호스트 접속 포트
+    volumes:
+      - team2_pgdata_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U team2_user -d team2_final"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # (옵션) 로컬에서도 컨테이너 안에서 장고를 띄우고 싶다면 아래 블록을 주석 해제하세요.
+  # web:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     DJANGO_DEBUG: "True"
+  #     IN_DOCKER: "1"
+  #     POSTGRES_DB: team2_final
+  #     POSTGRES_USER: team2_user
+  #     POSTGRES_PASSWORD: supersecret
+  #     POSTGRES_HOST: db            # 컨테이너 내부 네트워크에서는 db:5432 로 접속
+  #     POSTGRES_PORT: "5432"
+  #   volumes:
+  #     - .:/app
+  #   command: >
+  #     bash -lc "
+  #       python manage.py migrate &&
+  #       python manage.py runserver 0.0.0.0:8000
+  #     "
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - db
+
+volumes:
+  team2_pgdata_local:

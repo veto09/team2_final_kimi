@@ -1,12 +1,9 @@
-cat > .gitignore << 'EOF'
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 env/
-.env
-pgdata
 
 # Django
 *.log
@@ -15,6 +12,15 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Docker/Postgres
+pgdata/
+
 # IDE
 .vscode/
 .idea/
@@ -22,4 +28,3 @@ staticfiles/
 # OS
 .DS_Store
 Thumbs.db
-EOFdb.sqlite3
