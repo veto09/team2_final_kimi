@@ -381,7 +381,7 @@ class AIViewSet(viewsets.ViewSet):
     - POST /api/ai/meal-commit/  : 프리뷰 결과를 실제 저장
     - DELETE /api/ai/meal-entry/<item_id>/ : 식사 항목 삭제
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # JWT 인증 필수
     parser_classes = (JSONParser, MultiPartParser, FormParser)
 
     @action(

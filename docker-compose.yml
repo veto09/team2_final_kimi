@@ -1,104 +1,60 @@
-# docker-compose.yml  (Compose V2: version 키 생략 추천)
-
 services:
+  web:
+    build: .
+    container_name: team2_final_web
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,host.docker.internal"
+      DJANGO_DEBUG: "False"
+      DJANGO_TIME_ZONE: "Asia/Seoul"
+      DB_ENGINE: "postgres"
+      POSTGRES_DB: "team2_final"
+      POSTGRES_USER: "team2_user"
+      POSTGRES_PASSWORD: "supersecret"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: "team2_final.settings"
+      DJANGO_SECRET_KEY: "wLfHydVT0ct0BOkofS6xFwD3uh8tSIV3PxvSAbwFk_2mkRx6J3qUUav2Ji3yEiXkPuVWo9Ud3y6EgHuWIC1kVg"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py collectstatic --noinput && python manage.py migrate &&
+             gunicorn team2_final.wsgi:application -b 0.0.0.0:8000 --workers 3 --threads 2 --timeout 60 --chdir /app"
+
   db:
     image: postgres:16
     container_name: team2_final_db
     environment:
       POSTGRES_DB: team2_final
       POSTGRES_USER: team2_user
-      POSTGRES_PASSWORD: supersecret    # ← api와 반드시 동일
+      POSTGRES_PASSWORD: supersecret
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h db -U team2_user -d team2_final || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U team2_user -d team2_final"]
       interval: 5s
       timeout: 3s
-      retries: 20
-    restart: unless-stopped
-    # 로컬 개발에서만 필요하면 주석 해제
-    # ports:
-    #   - "5432:5432"
-
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: team2/api:dev
-    container_name: team2_web
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # ---- Django ----
-      IN_DOCKER: "1"
-      DJANGO_SETTINGS_MODULE: team2_final.settings
-      DJANGO_TIME_ZONE: Asia/Seoul
-      DJANGO_DEBUG: "False"
-      DJANGO_SECRET_KEY: "CHANGE_ME_FOR_LOCAL_ONLY"
-
-      # 공인 IP / 퍼블릭 DNS로 교체
-      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,35.172.136.176,ec2-35-172-136-176.compute-1.amazonaws.com"
-      CSRF_TRUSTED_ORIGINS: "http://35.172.136.176,http://ec2-35-172-136-176.compute-1.amazonaws.com"
-
-      # ---- DB ----
-      DB_ENGINE: "postgres"
-      POSTGRES_DB: "team2_final"
-      POSTGRES_USER: "team2_user"
-      POSTGRES_PASSWORD: "supersecret"     # ← db와 동일(이전 supersecret!123 제거)
-      POSTGRES_HOST: "db"
-      POSTGRES_PORT: "5432"
-
-      # ---- Gunicorn 강제 바인딩 ----
-      # (모듈만 실행해도 항상 0.0.0.0:8000로 리슨)
-      GUNICORN_CMD_ARGS: "--bind=0.0.0.0:8000 --workers=3 --threads=2 --timeout=60 --chdir=/app --access-logfile -"
-
-    command: >
-      bash -lc "
-        python manage.py collectstatic --noinput &&
-        python manage.py migrate --noinput &&
-        exec gunicorn team2_final.wsgi:application
-      "
-    # api는 외부 포트 직접 오픈하지 않음 (Nginx가 80을 담당)
-    # 필요시 임시 진단용으로 아래를 잠깐 열 수 있음:
-    # ports:
-    #   - "8000:8000"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/healthz || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 6
-      start_period: 45s
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:1.27
-    container_name: team2_nginx
-    depends_on:
-      api:
-        condition: service_healthy
-    ports:
-      - "80:80"          # 외부는 80만 오픈
-    volumes:
-      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/healthz || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 6
-      start_period: 10s
+      retries: 10
     restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest
     container_name: team2_final_prom
-    depends_on:
-      api:
-        condition: service_healthy
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - web
     restart: unless-stopped
 
 volumes:

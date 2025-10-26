@@ -95,5 +95,6 @@ def hf_image_classify(image_bytes: bytes, top_k: int = 3, retries: int = 2):
         # 응답이 리스트가 아니면 (e.g. {"error": "Model is loading"})
         # 잠시 기다렸다가 재시도합니다.
         time.sleep(1)
+        time.sleep(1 + i)
 
     raise HFError("HF API not ready after retries")

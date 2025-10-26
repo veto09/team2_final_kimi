@@ -258,11 +258,33 @@ def _row_to_macros(row: Dict[str, str]) -> Dict[str, float]:
         fat100_key = _pick_key(row, [re.compile(r"(100g.*지방|지방.*100g|fat.*100g)", re.I)])
         if fat100_key: fat = _to_float_any(row.get(fat100_key))
 
-    # 폴백: 없으면 0
+    # 폴백: 없으면 0 → 칼로리 기반 추정
     kcal    = round(kcal or 0.0, 1)
     protein = round(protein or 0.0, 1)
     carb    = round(carb or 0.0, 1)
     fat     = round(fat or 0.0, 1)
+
+    # 🔥 추가: 탄수화물/지방 누락시 칼로리 기반 추정
+    if kcal > 0 and protein > 0 and (carb == 0 or fat == 0):
+        protein_kcal = protein * 4  # 단백질 칼로리
+        remaining_kcal = max(0, kcal - protein_kcal)
+
+        if carb == 0 and fat == 0:
+            # 둘 다 없으면 40:60 비율로 배분
+            carb_kcal = remaining_kcal * 0.40
+            fat_kcal = remaining_kcal * 0.60
+            carb = round(carb_kcal / 4, 1)
+            fat = round(fat_kcal / 9, 1)
+        elif carb == 0:
+            # 지방만 있으면 나머지를 탄수화물로
+            fat_kcal = fat * 9
+            carb_kcal = max(0, remaining_kcal - fat_kcal)
+            carb = round(carb_kcal / 4, 1)
+        elif fat == 0:
+            # 탄수화물만 있으면 나머지를 지방으로
+            carb_kcal = carb * 4
+            fat_kcal = max(0, remaining_kcal - carb_kcal)
+            fat = round(fat_kcal / 9, 1)
 
     return {
         "label_ko": name_ko,

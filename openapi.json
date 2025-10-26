@@ -1,18 +1,605 @@
 openapi: 3.0.3
 info:
   title: Team2 Final API
-  version: 1.0.0
-  description: 헬스케어 투두리스트 프로젝트 API 문서
+  version: 0.1.0
+  description: Workout/Meal Tracking API
 paths:
+  /api/achievements/:
+    get:
+      operationId: api_achievements_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Achievement'
+          description: ''
+  /api/achievements/{id}/:
+    get:
+      operationId: api_achievements_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 달성도.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Achievement'
+          description: ''
+  /api/ai/meal-analyze/:
+    post:
+      operationId: api_ai_meal_analyze_create
+      description: |-
+        식단 이미지 분석 → 음식명/영양소 추출 (Food 모델 → CSV 순 매칭)
+        - commit 플래그 지원:
+          * 'preview' / '0' / 'false' / 'no' → 저장하지 않고 미리보기만
+          * 그 외(기본): 로그인 사용자는 (임계 통과 시) 자동 저장
+        - 프리뷰 응답에는 can_save + save_payload 포함
+        - 응답에 100g 기준(per100g) + 1회제공량 총합(total) 동시 제공, 저장은 total 기준
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/ai/meal-commit/:
+    post:
+      operationId: api_ai_meal_commit_create
+      description: |-
+        프리뷰 응답의 save_payload를 받아 실제로 저장한다.
+        요청(JSON 또는 form-data):
+        {
+          "label_ko": "김치찌개",
+          "macros": {"calories": 350, "protein": 20, "carb": 25, "fat": 15},  # ✅ 총합(1회 제공량) 기준만 전달됨
+          "meal_type": "아침|점심|저녁|간식",
+          "source": "db|csv|csv_estimate|default",
+          "food_id": 123,
+          "photo_name": "meals/2025/01/01/xxx.jpg"  # ✅ 분석 단계에서 선저장한 파일 경로
+        }
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/ai/meal-entry/{item_id}/:
+    delete:
+      operationId: api_ai_meal_entry_destroy
+      description: 식사 항목 삭제 후 요약 재계산
+      parameters:
+      - in: path
+        name: item_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/dailygoals/:
+    get:
+      operationId: api_dailygoals_list
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyGoal'
+          description: ''
+    post:
+      operationId: api_dailygoals_create
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+  /api/dailygoals/{id}/:
+    get:
+      operationId: api_dailygoals_retrieve
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일일 목표.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+    put:
+      operationId: api_dailygoals_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일일 목표.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+    patch:
+      operationId: api_dailygoals_partial_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일일 목표.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyGoal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyGoal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyGoal'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+    delete:
+      operationId: api_dailygoals_destroy
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일일 목표.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/dailygoals/ensure/:
+    post:
+      operationId: api_dailygoals_ensure_create
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyGoal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+  /api/dailygoals/summary/:
+    get:
+      operationId: api_dailygoals_summary_retrieve
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGoal'
+          description: ''
+  /api/dailyreports/:
+    get:
+      operationId: api_dailyreports_list
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyReport'
+          description: ''
+    post:
+      operationId: api_dailyreports_create
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+          description: ''
+  /api/dailyreports/{id}/:
+    get:
+      operationId: api_dailyreports_retrieve
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일간 리포트.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+          description: ''
+    put:
+      operationId: api_dailyreports_update
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일간 리포트.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+          description: ''
+    patch:
+      operationId: api_dailyreports_partial_update
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일간 리포트.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyReport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyReport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDailyReport'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+          description: ''
+    delete:
+      operationId: api_dailyreports_destroy
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 일간 리포트.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/dailyreports/ensure/:
+    post:
+      operationId: api_dailyreports_ensure_create
+      description: |-
+        /dailyreports/        CRUD (본인 것만)
+        /dailyreports/ensure/ (POST) -> (user,date) 1개 보장 get_or_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyReport'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+          description: ''
+  /api/exercises/:
+    get:
+      operationId: api_exercises_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Exercise'
+          description: ''
+  /api/exercises/{id}/:
+    get:
+      operationId: api_exercises_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 운동.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+          description: ''
+  /api/exercises/targets/:
+    get:
+      operationId: api_exercises_targets_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+          description: ''
   /api/feedbacks/:
     get:
-      operationId: feedbacks_list
+      operationId: api_feedbacks_list
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       tags:
-      - feedbacks
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -23,9 +610,13 @@ paths:
                   $ref: '#/components/schemas/Feedback'
           description: ''
     post:
-      operationId: feedbacks_create
+      operationId: api_feedbacks_create
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       tags:
-      - feedbacks
+      - api
       requestBody:
         content:
           application/json:
@@ -39,9 +630,8 @@ paths:
               $ref: '#/components/schemas/Feedback'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '201':
           content:
@@ -51,20 +641,23 @@ paths:
           description: ''
   /api/feedbacks/{id}/:
     get:
-      operationId: feedbacks_retrieve
+      operationId: api_feedbacks_retrieve
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: feedback을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 피드백.
         required: true
       tags:
-      - feedbacks
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -73,16 +666,20 @@ paths:
                 $ref: '#/components/schemas/Feedback'
           description: ''
     put:
-      operationId: feedbacks_update
+      operationId: api_feedbacks_update
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: feedback을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 피드백.
         required: true
       tags:
-      - feedbacks
+      - api
       requestBody:
         content:
           application/json:
@@ -96,9 +693,8 @@ paths:
               $ref: '#/components/schemas/Feedback'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -107,16 +703,20 @@ paths:
                 $ref: '#/components/schemas/Feedback'
           description: ''
     patch:
-      operationId: feedbacks_partial_update
+      operationId: api_feedbacks_partial_update
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: feedback을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 피드백.
         required: true
       tags:
-      - feedbacks
+      - api
       requestBody:
         content:
           application/json:
@@ -129,9 +729,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedFeedback'
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -140,32 +739,102 @@ paths:
                 $ref: '#/components/schemas/Feedback'
           description: ''
     delete:
-      operationId: feedbacks_destroy
+      operationId: api_feedbacks_destroy
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: feedback을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 피드백.
         required: true
       tags:
-      - feedbacks
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '204':
           description: No response body
+  /api/feedbacks/ai/ensure/:
+    post:
+      operationId: api_feedbacks_ai_ensure_create
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+          description: ''
+  /api/feedbacks/by-date/:
+    get:
+      operationId: api_feedbacks_by_date_retrieve
+      description: |-
+        /feedbacks/           CRUD (본인 것만)
+        /feedbacks/by-date/?date=YYYY-MM-DD  -> 해당 날짜 것만
+        /feedbacks/ai/ensure/ (POST)         -> 하루 1개 AI 피드백 업서트
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+          description: ''
+  /api/fixtures/exercises/:
+    get:
+      operationId: api_fixtures_exercises_retrieve
+      description: |-
+        tasks/fixtures/exercise.json 또는 exercises.json 을 읽어
+        [{id, name, target, ...}, ...] 형태로 반환
+        - 안전장치: 파일 크기 상한(약 1MB), list 스키마만 수용
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/foods/:
     get:
-      operationId: foods_list
+      operationId: api_foods_list
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       tags:
-      - foods
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -176,9 +845,12 @@ paths:
                   $ref: '#/components/schemas/Food'
           description: ''
     post:
-      operationId: foods_create
+      operationId: api_foods_create
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       tags:
-      - foods
+      - api
       requestBody:
         content:
           application/json:
@@ -192,9 +864,8 @@ paths:
               $ref: '#/components/schemas/Food'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '201':
           content:
@@ -204,20 +875,22 @@ paths:
           description: ''
   /api/foods/{id}/:
     get:
-      operationId: foods_retrieve
+      operationId: api_foods_retrieve
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: food을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 음식.
         required: true
       tags:
-      - foods
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -226,16 +899,19 @@ paths:
                 $ref: '#/components/schemas/Food'
           description: ''
     put:
-      operationId: foods_update
+      operationId: api_foods_update
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: food을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 음식.
         required: true
       tags:
-      - foods
+      - api
       requestBody:
         content:
           application/json:
@@ -249,9 +925,8 @@ paths:
               $ref: '#/components/schemas/Food'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -260,16 +935,19 @@ paths:
                 $ref: '#/components/schemas/Food'
           description: ''
     patch:
-      operationId: foods_partial_update
+      operationId: api_foods_partial_update
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: food을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 음식.
         required: true
       tags:
-      - foods
+      - api
       requestBody:
         content:
           application/json:
@@ -282,9 +960,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedFood'
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -293,32 +970,215 @@ paths:
                 $ref: '#/components/schemas/Food'
           description: ''
     delete:
-      operationId: foods_destroy
+      operationId: api_foods_destroy
+      description: |-
+        GET /api/foods/?q=닭가슴살   ← 부분일치 검색
+        ※ 쓰기(POST/PUT/PATCH/DELETE)는 관리자만 허용
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: food을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 음식.
         required: true
       tags:
-      - foods
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/goalprogress/:
+    get:
+      operationId: api_goalprogress_list
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalProgress'
+          description: ''
+    post:
+      operationId: api_goalprogress_create
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalProgress'
+          description: ''
+  /api/goalprogress/{id}/:
+    get:
+      operationId: api_goalprogress_retrieve
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 목표 진행도.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalProgress'
+          description: ''
+    put:
+      operationId: api_goalprogress_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 목표 진행도.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoalProgress'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalProgress'
+          description: ''
+    patch:
+      operationId: api_goalprogress_partial_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 목표 진행도.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGoalProgress'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGoalProgress'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGoalProgress'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalProgress'
+          description: ''
+    delete:
+      operationId: api_goalprogress_destroy
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 목표 진행도.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
       responses:
         '204':
           description: No response body
   /api/goals/:
     get:
-      operationId: goals_list
+      operationId: api_goals_list
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       tags:
-      - goals
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -329,9 +1189,14 @@ paths:
                   $ref: '#/components/schemas/Goal'
           description: ''
     post:
-      operationId: goals_create
+      operationId: api_goals_create
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       tags:
-      - goals
+      - api
       requestBody:
         content:
           application/json:
@@ -345,9 +1210,8 @@ paths:
               $ref: '#/components/schemas/Goal'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '201':
           content:
@@ -357,20 +1221,24 @@ paths:
           description: ''
   /api/goals/{id}/:
     get:
-      operationId: goals_retrieve
+      operationId: api_goals_retrieve
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: goal을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 목표.
         required: true
       tags:
-      - goals
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -379,16 +1247,21 @@ paths:
                 $ref: '#/components/schemas/Goal'
           description: ''
     put:
-      operationId: goals_update
+      operationId: api_goals_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: goal을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 목표.
         required: true
       tags:
-      - goals
+      - api
       requestBody:
         content:
           application/json:
@@ -402,9 +1275,8 @@ paths:
               $ref: '#/components/schemas/Goal'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -413,16 +1285,21 @@ paths:
                 $ref: '#/components/schemas/Goal'
           description: ''
     patch:
-      operationId: goals_partial_update
+      operationId: api_goals_partial_update
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: goal을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 목표.
         required: true
       tags:
-      - goals
+      - api
       requestBody:
         content:
           application/json:
@@ -435,9 +1312,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedGoal'
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -446,32 +1322,57 @@ paths:
                 $ref: '#/components/schemas/Goal'
           description: ''
     delete:
-      operationId: goals_destroy
+      operationId: api_goals_destroy
+      description: |-
+        공통 규칙:
+        - 인증 필수
+        - 목록/상세 모두 '내 데이터'만 보임
+        - 생성/수정 시 user를 request.user로 강제 주입
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: goal을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 목표.
         required: true
       tags:
-      - goals
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '204':
           description: No response body
-  /api/intake/:
+  /api/insights/today/:
     get:
-      operationId: intake_list
+      operationId: api_insights_today_retrieve
+      description: |-
+        GET /api/insights/today/?date=YYYY-MM-DD[&workout_plan=<id>]
+        - 대표 운동: duration_min * 강도 가중치 (없으면 1.2) 기준
+        - 보조: 진행도(완료/전체), 총 계획 시간
+        - 절대 500 터지지 않도록 방어
       tags:
-      - intake
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/intakes/:
+    get:
+      operationId: api_intakes_list
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
       responses:
         '200':
           content:
@@ -479,146 +1380,2527 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Intake'
+                  $ref: '#/components/schemas/NutritionLog'
           description: ''
     post:
-      operationId: intake_create
+      operationId: api_intakes_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
       tags:
-      - intake
+      - api
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Intake'
+                $ref: '#/components/schemas/NutritionLog'
           description: ''
-  /api/intake/{id}/:
+  /api/intakes/{id}/:
     get:
-      operationId: intake_retrieve
+      operationId: api_intakes_retrieve
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: intake을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 영양 기록.
         required: true
       tags:
-      - intake
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Intake'
+                $ref: '#/components/schemas/NutritionLog'
           description: ''
     put:
-      operationId: intake_update
+      operationId: api_intakes_update
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: intake을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 영양 기록.
         required: true
       tags:
-      - intake
+      - api
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Intake'
+              $ref: '#/components/schemas/NutritionLog'
         required: true
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Intake'
+                $ref: '#/components/schemas/NutritionLog'
           description: ''
     patch:
-      operationId: intake_partial_update
+      operationId: api_intakes_partial_update
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: intake을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 영양 기록.
         required: true
       tags:
-      - intake
+      - api
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedIntake'
+              $ref: '#/components/schemas/PatchedNutritionLog'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedIntake'
+              $ref: '#/components/schemas/PatchedNutritionLog'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedIntake'
+              $ref: '#/components/schemas/PatchedNutritionLog'
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Intake'
+                $ref: '#/components/schemas/NutritionLog'
           description: ''
     delete:
-      operationId: intake_destroy
+      operationId: api_intakes_destroy
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: intake을 식별하는 고유한 정수 값.
+        description: A unique integer value identifying this 영양 기록.
         required: true
       tags:
-      - intake
+      - api
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
-      - {}
       responses:
         '204':
           description: No response body
-  /api/schema/:
+  /api/intakes/{id}/recalc/:
+    post:
+      operationId: api_intakes_recalc_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/intakes/by-date/:
     get:
-      operationId: schema_retrieve
+      operationId: api_intakes_by_date_retrieve
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/intakes/ensure/:
+    post:
+      operationId: api_intakes_ensure_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/mealitems/:
+    get:
+      operationId: api_mealitems_list
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MealItem'
+          description: ''
+    post:
+      operationId: api_mealitems_create
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealItem'
+          description: ''
+  /api/mealitems/{id}/:
+    get:
+      operationId: api_mealitems_retrieve
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사 항목.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealItem'
+          description: ''
+    put:
+      operationId: api_mealitems_update
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사 항목.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MealItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealItem'
+          description: ''
+    patch:
+      operationId: api_mealitems_partial_update
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사 항목.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMealItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMealItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMealItem'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealItem'
+          description: ''
+    delete:
+      operationId: api_mealitems_destroy
+      description: |-
+        MealItem은 meal.user를 통해 소유자가 결정됨.
+        - 생성/수정 시 meal.user == request.user 검증
+        - grams 기반 자동계산 값은 Serializer의 read-only 필드로 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사 항목.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/meals/:
+    get:
+      operationId: api_meals_list
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Meal'
+          description: ''
+    post:
+      operationId: api_meals_create
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Meal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+  /api/meals/{id}/:
+    get:
+      operationId: api_meals_retrieve
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+    put:
+      operationId: api_meals_update
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Meal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+    patch:
+      operationId: api_meals_partial_update
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMeal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMeal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMeal'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+    delete:
+      operationId: api_meals_destroy
+      description: |-
+        GET /api/meals/?log_date=YYYY-MM-DD&meal_type=아침
+        (호환) date=YYYY-MM-DD 도 지원
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 식사.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/meals/by-date/:
+    get:
+      operationId: api_meals_by_date_retrieve
+      description: |-
+        GET /api/meals/by-date/?log_date=YYYY-MM-DD
+        (호환) date=YYYY-MM-DD
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+  /api/meals/ensure/:
+    post:
+      operationId: api_meals_ensure_create
+      description: |-
+        POST /api/meals/ensure/?log_date=YYYY-MM-DD&meal_type=아침
+        해당 날짜/끼니에 Meal이 없으면 생성 후 반환.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Meal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Meal'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meal'
+          description: ''
+  /api/nutritionlogs/:
+    get:
+      operationId: api_nutritionlogs_list
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NutritionLog'
+          description: ''
+    post:
+      operationId: api_nutritionlogs_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/nutritionlogs/{id}/:
+    get:
+      operationId: api_nutritionlogs_retrieve
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+    put:
+      operationId: api_nutritionlogs_update
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+    patch:
+      operationId: api_nutritionlogs_partial_update
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNutritionLog'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+    delete:
+      operationId: api_nutritionlogs_destroy
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/nutritionlogs/{id}/recalc/:
+    post:
+      operationId: api_nutritionlogs_recalc_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 영양 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/nutritionlogs/by-date/:
+    get:
+      operationId: api_nutritionlogs_by_date_retrieve
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/nutritionlogs/ensure/:
+    post:
+      operationId: api_nutritionlogs_ensure_create
+      description: |-
+        - 시그널로 Meal/MealItem 변동 시 자동 집계됨.
+        - 편의 액션:
+          * GET  /api/nutritionlogs/by-date/?log_date=YYYY-MM-DD
+          * POST /api/nutritionlogs/ensure/?log_date=YYYY-MM-DD  (미지정 시 오늘)
+          * POST /api/nutritionlogs/{id}/recalc/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NutritionLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NutritionLog'
+          description: ''
+  /api/recommendations/:
+    get:
+      operationId: api_recommendations_retrieve
+      description: |-
+        규칙:
+        1) 할 일 없음 → 플랜 생성 유도
+        2) 남은(Task.completed=False) 항목 그룹핑 → 최다 그룹 추천
+        3) 남은 항목 평균 강도/총 시간에 따라 가이드 문구
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/taskitems/:
+    get:
+      operationId: api_taskitems_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskItem'
+          description: ''
+    post:
+      operationId: api_taskitems_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/taskitems/{id}/:
+    get:
+      operationId: api_taskitems_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    put:
+      operationId: api_taskitems_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    patch:
+      operationId: api_taskitems_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    delete:
+      operationId: api_taskitems_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/taskitems/{id}/toggle-complete/:
+    post:
+      operationId: api_taskitems_toggle_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/taskitems/{id}/toggle-skip/:
+    post:
+      operationId: api_taskitems_toggle_skip_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/taskitems/weekly_progress/:
+    get:
+      operationId: api_taskitems_weekly_progress_retrieve
+      description: |-
+        주간 TaskItem 집계 + 간단 피드백.
+        ?start=YYYY-MM-DD (옵션, 기본: 이번 주 월요일)
+        WorkoutPlan.created_at의 '날짜' 기준으로 필터링.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/tasks/:
+    get:
+      operationId: api_tasks_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskItem'
+          description: ''
+    post:
+      operationId: api_tasks_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: api_tasks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    put:
+      operationId: api_tasks_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    patch:
+      operationId: api_tasks_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskItem'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+    delete:
+      operationId: api_tasks_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/{id}/toggle-complete/:
+    post:
+      operationId: api_tasks_toggle_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/tasks/{id}/toggle-skip/:
+    post:
+      operationId: api_tasks_toggle_skip_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskItem'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/tasks/weekly_progress/:
+    get:
+      operationId: api_tasks_weekly_progress_retrieve
+      description: |-
+        주간 TaskItem 집계 + 간단 피드백.
+        ?start=YYYY-MM-DD (옵션, 기본: 이번 주 월요일)
+        WorkoutPlan.created_at의 '날짜' 기준으로 필터링.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskItem'
+          description: ''
+  /api/today/:
+    get:
+      operationId: api_today_retrieve
+      description: |-
+        오늘 요약 엔드포인트
+
+        응답 스키마:
+        {
+          "date": "YYYY-MM-DD",
+          "dailygoal": {
+            "date": "...",
+            "kcal_target": number,
+            "protein_target_g": number,
+            "workout_minutes_target": number,
+            "kcal_actual": number,
+            "protein_actual_g": number,
+            "workout_minutes_actual": number,
+            "score": number|null
+          } | null,
+          "workout_minutes": number,       # ✅ WorkoutLog 합계(분)
+          "nutrition": {
+            "date": "...",
+            "kcal": number,
+            "protein_g": number,
+            "fat_g": number,
+            "carb_g": number
+          },
+          "tasks": [
+            { "id":..., "exercise_id":..., "exercise_name":..., "duration_min":..., "order":..., "completed": bool, "skipped": bool },
+            ...
+          ]
+        }
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/today/summary/:
+    get:
+      operationId: api_today_summary_retrieve
+      description: |-
+        오늘 요약 엔드포인트
+
+        응답 스키마:
+        {
+          "date": "YYYY-MM-DD",
+          "dailygoal": {
+            "date": "...",
+            "kcal_target": number,
+            "protein_target_g": number,
+            "workout_minutes_target": number,
+            "kcal_actual": number,
+            "protein_actual_g": number,
+            "workout_minutes_actual": number,
+            "score": number|null
+          } | null,
+          "workout_minutes": number,       # ✅ WorkoutLog 합계(분)
+          "nutrition": {
+            "date": "...",
+            "kcal": number,
+            "protein_g": number,
+            "fat_g": number,
+            "carb_g": number
+          },
+          "tasks": [
+            { "id":..., "exercise_id":..., "exercise_name":..., "duration_min":..., "order":..., "completed": bool, "skipped": bool },
+            ...
+          ]
+        }
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/token/:
+    post:
+      operationId: api_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/token/refresh/:
+    post:
+      operationId: api_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/token/verify/:
+    post:
+      operationId: api_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenVerify'
+          description: ''
+  /api/users/:
+    get:
+      operationId: api_users_list
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+          description: ''
+    post:
+      operationId: api_users_create
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/:
+    get:
+      operationId: api_users_retrieve
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: api_users_update
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_users_partial_update
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: api_users_destroy
+      description: |-
+        사용자 뷰셋 (JWT 필요)
+        - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
+        - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
+        - 수정/삭제: 자기 자신만, 또는 관리자
+        - 비활성화(휴면)/재활성화: 커스텀 액션 제공
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/users/{id}/deactivate/:
+    post:
+      operationId: api_users_deactivate_create
+      description: |-
+        본인 또는 관리자가 호출 가능.
+        - 일반 유저: 본인 비활성화 시 비밀번호 확인 권장
+        - 결과: is_active=False (로그인/토큰 발급 불가)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/reactivate/:
+    post:
+      operationId: api_users_reactivate_create
+      description: 기본적으로 관리자만 재활성화(업무 규칙에 따라 self 허용도 가능).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 사용자.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/me/:
+    get:
+      operationId: api_users_me_retrieve
+      description: |-
+        GET   : 내 정보 조회
+        PATCH : 내 정보 일부 수정 (email, first/last_name)
+        DELETE: 내 계정 하드 삭제(탈퇴) - 비밀번호 확인 필요
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_users_me_partial_update
+      description: |-
+        GET   : 내 정보 조회
+        PATCH : 내 정보 일부 수정 (email, first/last_name)
+        DELETE: 내 계정 하드 삭제(탈퇴) - 비밀번호 확인 필요
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: api_users_me_destroy
+      description: |-
+        GET   : 내 정보 조회
+        PATCH : 내 정보 일부 수정 (email, first/last_name)
+        DELETE: 내 계정 하드 삭제(탈퇴) - 비밀번호 확인 필요
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/workoutlogs/:
+    get:
+      operationId: api_workoutlogs_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkoutLog'
+          description: ''
+    post:
+      operationId: api_workoutlogs_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutLog'
+          description: ''
+  /api/workoutlogs/{id}/:
+    get:
+      operationId: api_workoutlogs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 운동 기록.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutLog'
+          description: ''
+    put:
+      operationId: api_workoutlogs_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 운동 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutLog'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutLog'
+          description: ''
+    patch:
+      operationId: api_workoutlogs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 운동 기록.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutLog'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutLog'
+          description: ''
+    delete:
+      operationId: api_workoutlogs_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this 운동 기록.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/workoutplans/:
+    get:
+      operationId: api_workoutplans_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+    post:
+      operationId: api_workoutplans_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/{id}/:
+    get:
+      operationId: api_workoutplans_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+    put:
+      operationId: api_workoutplans_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+    patch:
+      operationId: api_workoutplans_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkoutPlan'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+    delete:
+      operationId: api_workoutplans_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/workoutplans/{id}/ai-feedback/:
+    post:
+      operationId: api_workoutplans_ai_feedback_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/{id}/generate-ai/:
+    post:
+      operationId: api_workoutplans_generate_ai_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/{id}/self-feedback/:
+    post:
+      operationId: api_workoutplans_self_feedback_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/by-date/:
+    get:
+      operationId: api_workoutplans_by_date_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/copy_week/:
+    post:
+      operationId: api_workoutplans_copy_week_create
+      description: |-
+        기준 주(월~일)의 계획/TaskItem을 타깃 주로 복제.
+        WorkoutPlan.created_at의 '날짜' 기준으로 동작 (date 필드 없이 사용 가능)
+        - source_start: YYYY-MM-DD (옵션, 기본: 이번 주 월요일)
+        - target_start: YYYY-MM-DD (옵션, 기본: source_start + 7일)
+        - overwrite: true/false (옵션, 기본 false)
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/summary/:
+    get:
+      operationId: api_workoutplans_summary_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/workoutplans/today/:
+    get:
+      operationId: api_workoutplans_today_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /api/workoutplans/today/ensure/:
+    post:
+      operationId: api_workoutplans_today_ensure_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlan'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+          description: ''
+  /auth/token/:
+    post:
+      operationId: auth_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /auth/token/verify/:
+    post:
+      operationId: auth_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenVerify'
+          description: ''
+  /healthz:
+    get:
+      operationId: healthz_retrieve
+      description: 'Liveness: 애플리케이션 프로세스가 살아있는지 확인 (DB 의존 없음)'
+      tags:
+      - healthz
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /healthz/:
+    get:
+      operationId: healthz_retrieve_2
+      description: 'Liveness: 애플리케이션 프로세스가 살아있는지 확인 (DB 의존 없음)'
+      tags:
+      - healthz
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /openapi.json:
+    get:
+      operationId: openapi.json_retrieve
       description: |-
         OpenApi3 schema for this API. Format can be selected via content negotiation.
 
@@ -737,10 +4019,10 @@ paths:
           - zh-hans
           - zh-hant
       tags:
-      - schema
+      - openapi.json
       security:
+      - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -762,782 +4044,1385 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/tasks/:
-    get:
-      operationId: tasks_list
-      tags:
-      - tasks
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Task'
-          description: ''
-    post:
-      operationId: tasks_create
-      tags:
-      - tasks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Task'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Task'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Task'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-  /api/tasks/{id}/:
-    get:
-      operationId: tasks_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: task을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - tasks
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-    put:
-      operationId: tasks_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: task을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - tasks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Task'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Task'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Task'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-    patch:
-      operationId: tasks_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: task을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - tasks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedTask'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedTask'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedTask'
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-    delete:
-      operationId: tasks_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: task을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - tasks
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /api/users/:
-    get:
-      operationId: users_list
-      tags:
-      - users
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/User'
-          description: ''
-    post:
-      operationId: users_create
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/User'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
-  /api/users/{id}/:
-    get:
-      operationId: users_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: user을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - users
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
-    put:
-      operationId: users_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: user을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/User'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
-    patch:
-      operationId: users_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: user을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedUser'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedUser'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedUser'
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
-    delete:
-      operationId: users_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: user을 식별하는 고유한 정수 값.
-        required: true
-      tags:
-      - users
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '204':
-          description: No response body
 components:
   schemas:
+    Achievement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: 제목
+          maxLength: 100
+        description:
+          type: string
+          title: 설명
+        badge:
+          type: string
+          title: 배지
+          maxLength: 50
+        achieved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 달성 시각
+        shared_to_ai:
+          type: boolean
+          title: AI 공유 여부
+        user:
+          type: integer
+          title: 사용자
+        daily_goal:
+          type: integer
+          nullable: true
+          title: 연계 일일 목표
+      required:
+      - achieved_at
+      - id
+      - title
+      - user
+    DailyGoal:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        kcal_target:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 열량(kcal)
+        protein_target_g:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 단백질(g)
+        workout_minutes_target:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 운동 시간(분)
+        completion_score:
+          type: number
+          format: double
+          nullable: true
+          title: 달성도 점수(%)
+        goal:
+          type: integer
+          title: 목표
+      required:
+      - date
+      - goal
+      - id
+      - user
+    DailyReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        summary:
+          type: string
+          title: 요약
+        highlights:
+          type: string
+          title: 하이라이트
+        challenges:
+          type: string
+          title: 과제
+        mood:
+          allOf:
+          - $ref: '#/components/schemas/MoodEnum'
+          title: 기분
+        score:
+          type: number
+          format: double
+          nullable: true
+          title: AI 점수
+        source:
+          allOf:
+          - $ref: '#/components/schemas/DailyReportSourceEnum'
+          title: 생성 출처
+        ai_model:
+          type: string
+          title: AI 모델
+          maxLength: 100
+        ai_response:
+          nullable: true
+          title: AI 응답
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
+        user:
+          type: integer
+          title: 사용자
+      required:
+      - created_at
+      - date
+      - id
+      - updated_at
+      - user
+    DailyReportSourceEnum:
+      enum:
+      - user
+      - device
+      - ai
+      type: string
+      description: |-
+        * `user` - User
+        * `device` - Device
+        * `ai` - AI
+    Exercise:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        target:
+          type: string
+          title: 대상 부위
+          maxLength: 50
+        name:
+          type: string
+          title: 이름
+          maxLength: 100
+        description:
+          type: string
+          title: 설명
+        kcal_burned_per_min:
+          type: number
+          format: double
+          title: 분당 소모 칼로리
+      required:
+      - id
+      - name
+      - target
     Feedback:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        ref_date:
-          type: string
-          format: date
-        scope:
-          type: string
-          maxLength: 20
-        topic:
-          type: string
-          maxLength: 30
+        user:
+          type: integer
+          readOnly: true
         message:
           type: string
+          title: 메시지
+        summary:
+          type: string
+          title: 요약
+        recommended_action:
+          type: string
+          title: 추천 조치
+        sentiment_score:
+          type: number
+          format: double
+          nullable: true
+          title: 감성 점수
+        source:
+          allOf:
+          - $ref: '#/components/schemas/FeedbackSourceEnum'
+          default: user
+          title: 생성 출처
+        ai_model:
+          type: string
+          title: AI 모델
+          maxLength: 100
+        ai_version:
+          type: string
+          title: AI 버전
+          maxLength: 50
+        ai_prompt:
+          type: string
+          title: AI 프롬프트
+        ai_response:
+          nullable: true
+          title: AI 응답
+        ai_confidence:
+          type: number
+          format: double
+          nullable: true
+          title: AI 신뢰도
         created_at:
           type: string
           format: date-time
           readOnly: true
-        user:
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
+        workout_plan:
           type: integer
+          nullable: true
+          title: 연계 운동 계획
+        daily_report:
+          type: integer
+          nullable: true
+          title: 연계 리포트
       required:
       - created_at
+      - daily_report
       - id
       - message
-      - ref_date
-      - scope
-      - topic
+      - updated_at
       - user
+    FeedbackSourceEnum:
+      enum:
+      - user
+      - ai
+      - hybrid
+      type: string
+      description: |-
+        * `user` - User
+        * `ai` - AI
+        * `hybrid` - Hybrid
     Food:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        name_ko:
+        name:
           type: string
-          maxLength: 200
-        brand:
-          type: string
-          nullable: true
+          title: 이름
           maxLength: 120
-        serving_desc:
-          type: string
-          nullable: true
-          maxLength: 120
-        serving_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        kcal:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        protein_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        carbs_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        fat_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        sodium_mg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        source:
-          type: string
-          nullable: true
-          maxLength: 50
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
+        kcal_per_100g:
+          type: number
+          format: double
+          title: 열량(kcal/100g)
+        protein_g_per_100g:
+          type: number
+          format: double
+          title: 단백질(g/100g)
+        carb_g_per_100g:
+          type: number
+          format: double
+          title: 탄수화물(g/100g)
+        fat_g_per_100g:
+          type: number
+          format: double
+          title: 지방(g/100g)
       required:
-      - created_at
+      - carb_g_per_100g
+      - fat_g_per_100g
       - id
-      - name_ko
+      - kcal_per_100g
+      - name
+      - protein_g_per_100g
     Goal:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        goal_type:
-          type: boolean
-        target_weight_kg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        weekly_sessions:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        start_date:
-          type: string
-          format: date
-          nullable: true
-        end_date:
-          type: string
-          format: date
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
         user:
           type: integer
+          readOnly: true
+        goal_type:
+          type: string
+          title: 목표 유형
+          maxLength: 20
       required:
-      - created_at
+      - goal_type
       - id
       - user
-    Intake:
+    GoalProgress:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
+        user:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        completed_sessions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 완료 세션 수
+        goal:
+          type: integer
+          title: 목표
+      required:
+      - date
+      - goal
+      - id
+      - user
+    IntensityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+    Meal:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
         log_date:
           type: string
           format: date
+          title: 기록 날짜
         meal_type:
+          allOf:
+          - $ref: '#/components/schemas/MealTypeEnum'
+          title: 식사 유형
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealItem'
+          readOnly: true
+      required:
+      - id
+      - items
+      - log_date
+      - meal_type
+      - user
+    MealItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        meal:
+          type: integer
+          title: 식사
+        food:
+          type: integer
+          nullable: true
+          title: 음식
+        food_name:
           type: string
-          maxLength: 20
-        note:
+          title: 이름
+          readOnly: true
+        grams:
+          type: number
+          format: double
+          nullable: true
+          title: 중량(g)
+        name:
           type: string
           nullable: true
-          maxLength: 255
+          title: 이름
+          maxLength: 120
+        kcal:
+          type: number
+          format: double
+          nullable: true
+          title: 열량(kcal)
+        protein_g:
+          type: number
+          format: double
+          nullable: true
+          title: 단백질(g)
+        carb_g:
+          type: number
+          format: double
+          nullable: true
+          title: 탄수화물(g)
+        fat_g:
+          type: number
+          format: double
+          nullable: true
+          title: 지방(g)
+        nutrients:
+          type: string
+          readOnly: true
+      required:
+      - food_name
+      - id
+      - meal
+      - nutrients
+    MealTypeEnum:
+      enum:
+      - 아침
+      - 점심
+      - 저녁
+      - 간식
+      type: string
+      description: |-
+        * `아침` - 아침
+        * `점심` - 점심
+        * `저녁` - 저녁
+        * `간식` - 간식
+    MoodEnum:
+      enum:
+      - good
+      - average
+      - bad
+      type: string
+      description: |-
+        * `good` - 좋음
+        * `average` - 보통
+        * `bad` - 나쁨
+    NutritionLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        kcal_total:
+          type: number
+          format: double
+          title: 총 열량(kcal)
+        protein_total_g:
+          type: number
+          format: double
+          title: 총 단백질(g)
+        carb_total_g:
+          type: number
+          format: double
+          title: 총 탄수화물(g)
+        fat_total_g:
+          type: number
+          format: double
+          title: 총 지방(g)
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
+      required:
+      - date
+      - id
+      - user
+    PatchedDailyGoal:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        kcal_target:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 열량(kcal)
+        protein_target_g:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 단백질(g)
+        workout_minutes_target:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 목표 운동 시간(분)
+        completion_score:
+          type: number
+          format: double
+          nullable: true
+          title: 달성도 점수(%)
+        goal:
+          type: integer
+          title: 목표
+    PatchedDailyReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        summary:
+          type: string
+          title: 요약
+        highlights:
+          type: string
+          title: 하이라이트
+        challenges:
+          type: string
+          title: 과제
+        mood:
+          allOf:
+          - $ref: '#/components/schemas/MoodEnum'
+          title: 기분
+        score:
+          type: number
+          format: double
+          nullable: true
+          title: AI 점수
+        source:
+          allOf:
+          - $ref: '#/components/schemas/DailyReportSourceEnum'
+          title: 생성 출처
+        ai_model:
+          type: string
+          title: AI 모델
+          maxLength: 100
+        ai_response:
+          nullable: true
+          title: AI 응답
         created_at:
           type: string
           format: date-time
           readOnly: true
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
         user:
           type: integer
-        food:
-          type: integer
-          nullable: true
-      required:
-      - created_at
-      - id
-      - log_date
-      - meal_type
-      - user
+          title: 사용자
     PatchedFeedback:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        ref_date:
-          type: string
-          format: date
-        scope:
-          type: string
-          maxLength: 20
-        topic:
-          type: string
-          maxLength: 30
+        user:
+          type: integer
+          readOnly: true
         message:
           type: string
+          title: 메시지
+        summary:
+          type: string
+          title: 요약
+        recommended_action:
+          type: string
+          title: 추천 조치
+        sentiment_score:
+          type: number
+          format: double
+          nullable: true
+          title: 감성 점수
+        source:
+          allOf:
+          - $ref: '#/components/schemas/FeedbackSourceEnum'
+          default: user
+          title: 생성 출처
+        ai_model:
+          type: string
+          title: AI 모델
+          maxLength: 100
+        ai_version:
+          type: string
+          title: AI 버전
+          maxLength: 50
+        ai_prompt:
+          type: string
+          title: AI 프롬프트
+        ai_response:
+          nullable: true
+          title: AI 응답
+        ai_confidence:
+          type: number
+          format: double
+          nullable: true
+          title: AI 신뢰도
         created_at:
           type: string
           format: date-time
           readOnly: true
-        user:
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
+        workout_plan:
           type: integer
+          nullable: true
+          title: 연계 운동 계획
+        daily_report:
+          type: integer
+          nullable: true
+          title: 연계 리포트
     PatchedFood:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        name_ko:
+        name:
           type: string
-          maxLength: 200
-        brand:
-          type: string
-          nullable: true
+          title: 이름
           maxLength: 120
-        serving_desc:
-          type: string
-          nullable: true
-          maxLength: 120
-        serving_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        kcal:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        protein_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        carbs_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        fat_g:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        sodium_mg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        source:
-          type: string
-          nullable: true
-          maxLength: 50
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
+        kcal_per_100g:
+          type: number
+          format: double
+          title: 열량(kcal/100g)
+        protein_g_per_100g:
+          type: number
+          format: double
+          title: 단백질(g/100g)
+        carb_g_per_100g:
+          type: number
+          format: double
+          title: 탄수화물(g/100g)
+        fat_g_per_100g:
+          type: number
+          format: double
+          title: 지방(g/100g)
     PatchedGoal:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        goal_type:
-          type: boolean
-        target_weight_kg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        weekly_sessions:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        start_date:
-          type: string
-          format: date
-          nullable: true
-        end_date:
-          type: string
-          format: date
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
         user:
           type: integer
-    PatchedIntake:
+          readOnly: true
+        goal_type:
+          type: string
+          title: 목표 유형
+          maxLength: 20
+    PatchedGoalProgress:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
+        user:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        completed_sessions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: 완료 세션 수
+        goal:
+          type: integer
+          title: 목표
+    PatchedMeal:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
         log_date:
           type: string
           format: date
+          title: 기록 날짜
         meal_type:
-          type: string
-          maxLength: 20
-        note:
-          type: string
-          nullable: true
-          maxLength: 255
-        created_at:
-          type: string
-          format: date-time
+          allOf:
+          - $ref: '#/components/schemas/MealTypeEnum'
+          title: 식사 유형
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealItem'
           readOnly: true
-        user:
+    PatchedMealItem:
+      type: object
+      properties:
+        id:
           type: integer
+          readOnly: true
+        meal:
+          type: integer
+          title: 식사
         food:
           type: integer
           nullable: true
-    PatchedTask:
+          title: 음식
+        food_name:
+          type: string
+          title: 이름
+          readOnly: true
+        grams:
+          type: number
+          format: double
+          nullable: true
+          title: 중량(g)
+        name:
+          type: string
+          nullable: true
+          title: 이름
+          maxLength: 120
+        kcal:
+          type: number
+          format: double
+          nullable: true
+          title: 열량(kcal)
+        protein_g:
+          type: number
+          format: double
+          nullable: true
+          title: 단백질(g)
+        carb_g:
+          type: number
+          format: double
+          nullable: true
+          title: 탄수화물(g)
+        fat_g:
+          type: number
+          format: double
+          nullable: true
+          title: 지방(g)
+        nutrients:
+          type: string
+          readOnly: true
+    PatchedNutritionLog:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        task_date:
+        date:
           type: string
           format: date
-        category:
+          title: 날짜
+        kcal_total:
+          type: number
+          format: double
+          title: 총 열량(kcal)
+        protein_total_g:
+          type: number
+          format: double
+          title: 총 단백질(g)
+        carb_total_g:
+          type: number
+          format: double
+          title: 총 탄수화물(g)
+        fat_total_g:
+          type: number
+          format: double
+          title: 총 지방(g)
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
+    PatchedTaskItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        workout_plan:
+          type: integer
+          title: 운동 계획
+        exercise:
+          type: integer
+          title: 운동
+        exercise_name:
           type: string
-          maxLength: 20
-        title:
+          title: 이름
+          readOnly: true
+        exercise_detail:
+          allOf:
+          - $ref: '#/components/schemas/Exercise'
+          readOnly: true
+        duration_min:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 운동 시간(분)
+        target_sets:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 목표 세트
+        target_reps:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 목표 횟수
+        intensity:
+          allOf:
+          - $ref: '#/components/schemas/IntensityEnum'
+          title: 강도
+        notes:
           type: string
-          maxLength: 120
-        details_json: {}
-        status:
+          title: 메모
+        is_ai_recommended:
+          type: boolean
+          title: AI 추천 여부
+        ai_goal:
           type: string
-          maxLength: 20
-        created_at:
+          title: AI 설정 목표
+          maxLength: 100
+        ai_metadata:
+          nullable: true
+          title: AI 메타데이터
+        recommended_weight_range:
+          type: string
+          title: 권장 체중 범위
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 순서
+        completed:
+          type: boolean
+          title: 완료 여부
+        skipped:
+          type: boolean
+          title: 스킵 여부
+        skip_reason:
+          type: string
+          nullable: true
+          title: 스킵 사유
+          maxLength: 200
+        completed_at:
           type: string
           format: date-time
           readOnly: true
-        user:
-          type: integer
-        goal:
-          type: integer
           nullable: true
+          title: 완료 시각
     PatchedUser:
       type: object
+      description: |-
+        유저 기본 직렬화기
+        - username/id는 읽기전용 (아이디 변경 방지)
+        - is_active는 일반 PATCH로는 수정 불가(휴면/복구는 별도 액션에서 처리)
       properties:
         id:
           type: integer
           readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: 아이디
+          description: 로그인에 사용할 아이디 (영문, 숫자 조합)
         email:
           type: string
-          maxLength: 255
-        password_hash:
+          format: email
+          title: 이메일
+          description: 연락용 이메일 주소
+          maxLength: 254
+        first_name:
           type: string
-          maxLength: 255
-        nickname:
+          title: 이름
+          maxLength: 150
+        last_name:
           type: string
-          nullable: true
-          maxLength: 50
-        gender:
-          type: string
-          nullable: true
-          maxLength: 10
-        height_cm:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        weight_kg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        activity_level:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        created_at:
+          title: 성
+          maxLength: 150
+        is_active:
+          type: boolean
+          readOnly: true
+          title: 활성
+          description: 이 사용자가 활성화되어 있는지를 나타냅니다. 계정을 삭제하는 대신 이것을 선택 해제하세요.
+        date_joined:
           type: string
           format: date-time
           readOnly: true
-    Task:
+          title: 등록일
+    PatchedWorkoutLog:
       type: object
       properties:
         id:
           type: integer
-          readOnly: true
-        task_date:
-          type: string
-          format: date
-        category:
-          type: string
-          maxLength: 20
-        title:
-          type: string
-          maxLength: 120
-        details_json: {}
-        status:
-          type: string
-          maxLength: 20
-        created_at:
-          type: string
-          format: date-time
           readOnly: true
         user:
           type: integer
-        goal:
+          readOnly: true
+          title: 사용자
+        workout_plan:
           type: integer
           nullable: true
-      required:
-      - category
-      - created_at
-      - id
-      - task_date
-      - title
-      - user
-    User:
+          title: 연계 운동 계획
+        task_item:
+          type: integer
+          nullable: true
+          title: 연계 작업
+        exercise:
+          type: integer
+          title: 운동
+        exercise_name:
+          type: string
+          title: 이름
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        duration_min:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 운동 시간(분)
+        kcal_burned:
+          type: number
+          format: double
+          title: 소모 칼로리
+        perceived_exertion:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 체감 강도
+        ai_adjusted:
+          type: boolean
+          title: AI 조정 여부
+        notes:
+          type: string
+          title: 메모
+    PatchedWorkoutPlan:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        email:
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
+        title:
           type: string
-          maxLength: 255
-        password_hash:
+          title: 제목
+          maxLength: 100
+        description:
           type: string
-          maxLength: 255
-        nickname:
+          title: 설명
+        summary:
           type: string
-          nullable: true
+          title: 요약
+        target_focus:
+          type: string
+          title: 중점 영역
           maxLength: 50
-        gender:
+        source:
+          allOf:
+          - $ref: '#/components/schemas/WorkoutPlanSourceEnum'
+          title: 생성 출처
+        ai_model:
           type: string
+          title: AI 모델
+          maxLength: 100
+        ai_version:
+          type: string
+          title: AI 버전
+          maxLength: 50
+        ai_prompt:
+          type: string
+          title: AI 프롬프트
+        ai_response:
           nullable: true
-          maxLength: 10
-        height_cm:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          title: AI 응답
+        ai_confidence:
+          type: number
+          format: double
           nullable: true
-        weight_kg:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-        activity_level:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
+          title: AI 신뢰도
         created_at:
           type: string
           format: date-time
           readOnly: true
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
+        tasks:
+          type: string
+          readOnly: true
+        tasks_count:
+          type: integer
+          readOnly: true
+        total_duration_min:
+          type: integer
+          readOnly: true
+    TaskItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        workout_plan:
+          type: integer
+          title: 운동 계획
+        exercise:
+          type: integer
+          title: 운동
+        exercise_name:
+          type: string
+          title: 이름
+          readOnly: true
+        exercise_detail:
+          allOf:
+          - $ref: '#/components/schemas/Exercise'
+          readOnly: true
+        duration_min:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 운동 시간(분)
+        target_sets:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 목표 세트
+        target_reps:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 목표 횟수
+        intensity:
+          allOf:
+          - $ref: '#/components/schemas/IntensityEnum'
+          title: 강도
+        notes:
+          type: string
+          title: 메모
+        is_ai_recommended:
+          type: boolean
+          title: AI 추천 여부
+        ai_goal:
+          type: string
+          title: AI 설정 목표
+          maxLength: 100
+        ai_metadata:
+          nullable: true
+          title: AI 메타데이터
+        recommended_weight_range:
+          type: string
+          title: 권장 체중 범위
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 순서
+        completed:
+          type: boolean
+          title: 완료 여부
+        skipped:
+          type: boolean
+          title: 스킵 여부
+        skip_reason:
+          type: string
+          nullable: true
+          title: 스킵 사유
+          maxLength: 200
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          title: 완료 시각
       required:
-      - created_at
+      - completed_at
+      - exercise
+      - exercise_detail
+      - exercise_name
+      - id
+      - workout_plan
+    TokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - refresh
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+    TokenVerify:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+      required:
+      - token
+    User:
+      type: object
+      description: |-
+        유저 기본 직렬화기
+        - username/id는 읽기전용 (아이디 변경 방지)
+        - is_active는 일반 PATCH로는 수정 불가(휴면/복구는 별도 액션에서 처리)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: 아이디
+          description: 로그인에 사용할 아이디 (영문, 숫자 조합)
+        email:
+          type: string
+          format: email
+          title: 이메일
+          description: 연락용 이메일 주소
+          maxLength: 254
+        first_name:
+          type: string
+          title: 이름
+          maxLength: 150
+        last_name:
+          type: string
+          title: 성
+          maxLength: 150
+        is_active:
+          type: boolean
+          readOnly: true
+          title: 활성
+          description: 이 사용자가 활성화되어 있는지를 나타냅니다. 계정을 삭제하는 대신 이것을 선택 해제하세요.
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 등록일
+      required:
+      - date_joined
       - email
       - id
-      - password_hash
+      - is_active
+      - username
+    WorkoutLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
+        workout_plan:
+          type: integer
+          nullable: true
+          title: 연계 운동 계획
+        task_item:
+          type: integer
+          nullable: true
+          title: 연계 작업
+        exercise:
+          type: integer
+          title: 운동
+        exercise_name:
+          type: string
+          title: 이름
+          readOnly: true
+        date:
+          type: string
+          format: date
+          title: 날짜
+        duration_min:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: 운동 시간(분)
+        kcal_burned:
+          type: number
+          format: double
+          title: 소모 칼로리
+        perceived_exertion:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          title: 체감 강도
+        ai_adjusted:
+          type: boolean
+          title: AI 조정 여부
+        notes:
+          type: string
+          title: 메모
+      required:
+      - date
+      - exercise
+      - exercise_name
+      - id
+      - user
+    WorkoutPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+          title: 사용자
+        title:
+          type: string
+          title: 제목
+          maxLength: 100
+        description:
+          type: string
+          title: 설명
+        summary:
+          type: string
+          title: 요약
+        target_focus:
+          type: string
+          title: 중점 영역
+          maxLength: 50
+        source:
+          allOf:
+          - $ref: '#/components/schemas/WorkoutPlanSourceEnum'
+          title: 생성 출처
+        ai_model:
+          type: string
+          title: AI 모델
+          maxLength: 100
+        ai_version:
+          type: string
+          title: AI 버전
+          maxLength: 50
+        ai_prompt:
+          type: string
+          title: AI 프롬프트
+        ai_response:
+          nullable: true
+          title: AI 응답
+        ai_confidence:
+          type: number
+          format: double
+          nullable: true
+          title: AI 신뢰도
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 생성일
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 수정일
+        tasks:
+          type: string
+          readOnly: true
+        tasks_count:
+          type: integer
+          readOnly: true
+        total_duration_min:
+          type: integer
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - tasks
+      - tasks_count
+      - title
+      - total_duration_min
+      - updated_at
+      - user
+    WorkoutPlanSourceEnum:
+      enum:
+      - manual
+      - ai_initial
+      - ai_update
+      type: string
+      description: |-
+        * `manual` - Manual
+        * `ai_initial` - AI Initial
+        * `ai_update` - AI Update
   securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
     cookieAuth:
       type: apiKey
       in: cookie
       name: sessionid
-servers:
-- url: http://localhost:8000/api
-  description: Local dev
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

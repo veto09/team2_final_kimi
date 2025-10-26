@@ -206,14 +206,47 @@ def to_per100g(entry: FoodEntry) -> Dict[str, float]:
     """
     Convert FoodEntry.macros to standard keys used by API/front:
     kcal, protein_g, carb_g, fat_g (all per 100g)
-    Missing values default to 0.0
+
+    If carb or fat is missing but calories and protein exist,
+    estimate using remaining calories:
+    - Protein: 4 kcal/g
+    - Carb: 4 kcal/g
+    - Fat: 9 kcal/g
+    - Typical ratio: carb 40%, fat 60% of remaining calories
     """
     m = entry.macros or {}
+    kcal = float(m.get("calories") or 0.0)
+    protein_g = float(m.get("protein") or 0.0)
+    carb_g = float(m.get("carb") or 0.0)
+    fat_g = float(m.get("fat") or 0.0)
+
+    # If missing carb or fat but have calories and protein, estimate
+    if kcal > 0 and protein_g > 0 and (carb_g == 0 or fat_g == 0):
+        protein_kcal = protein_g * 4  # 단백질 칼로리
+        remaining_kcal = max(0, kcal - protein_kcal)
+
+        if carb_g == 0 and fat_g == 0:
+            # 둘 다 없으면 40:60 비율로 배분
+            carb_kcal = remaining_kcal * 0.40
+            fat_kcal = remaining_kcal * 0.60
+            carb_g = round(carb_kcal / 4, 1)
+            fat_g = round(fat_kcal / 9, 1)
+        elif carb_g == 0:
+            # 지방만 있으면 나머지를 탄수화물로
+            fat_kcal = fat_g * 9
+            carb_kcal = max(0, remaining_kcal - fat_kcal)
+            carb_g = round(carb_kcal / 4, 1)
+        elif fat_g == 0:
+            # 탄수화물만 있으면 나머지를 지방으로
+            carb_kcal = carb_g * 4
+            fat_kcal = max(0, remaining_kcal - carb_kcal)
+            fat_g = round(fat_kcal / 9, 1)
+
     return {
-        "kcal": float(m.get("calories") or 0.0),
-        "protein_g": float(m.get("protein") or 0.0),
-        "carb_g": float(m.get("carb") or 0.0),
-        "fat_g": float(m.get("fat") or 0.0),
+        "kcal": kcal,
+        "protein_g": protein_g,
+        "carb_g": carb_g,
+        "fat_g": fat_g,
     }
 
 def compute_total_from_entry(entry: FoodEntry, weight_g: Optional[float]) -> Dict[str, float]:
