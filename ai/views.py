@@ -386,6 +386,54 @@ class AIViewSet(viewsets.ViewSet):
 
     @action(
         detail=False,
+        methods=["get"],
+        url_path="popular-foods",
+    )
+    def popular_foods(self, request):
+        """
+        인기 음식 목록 반환 (AI 인식 실패시 사용자가 직접 선택)
+        """
+        POPULAR_FOODS = [
+            # 한식
+            {"name_ko": "김밥", "name_en": "kimbap", "category": "한식"},
+            {"name_ko": "비빔밥", "name_en": "bibimbap", "category": "한식"},
+            {"name_ko": "김치찌개", "name_en": "kimchi stew", "category": "한식"},
+            {"name_ko": "된장찌개", "name_en": "soybean paste stew", "category": "한식"},
+            {"name_ko": "불고기", "name_en": "bulgogi", "category": "한식"},
+            {"name_ko": "삼겹살", "name_en": "pork belly", "category": "한식"},
+            {"name_ko": "떡볶이", "name_en": "tteokbokki", "category": "한식"},
+            {"name_ko": "만두", "name_en": "dumpling", "category": "한식"},
+
+            # 중식/일식
+            {"name_ko": "짜장면", "name_en": "jajangmyeon", "category": "중식"},
+            {"name_ko": "짬뽕", "name_en": "jjamppong", "category": "중식"},
+            {"name_ko": "탕수육", "name_en": "sweet and sour pork", "category": "중식"},
+            {"name_ko": "초밥", "name_en": "sushi", "category": "일식"},
+            {"name_ko": "우동", "name_en": "udon", "category": "일식"},
+            {"name_ko": "돈까스", "name_en": "pork cutlet", "category": "일식"},
+
+            # 양식
+            {"name_ko": "스파게티", "name_en": "spaghetti", "category": "양식"},
+            {"name_ko": "피자", "name_en": "pizza", "category": "양식"},
+            {"name_ko": "햄버거", "name_en": "hamburger", "category": "양식"},
+            {"name_ko": "스테이크", "name_en": "steak", "category": "양식"},
+            {"name_ko": "샐러드", "name_en": "salad", "category": "양식"},
+
+            # 패스트푸드/간식
+            {"name_ko": "치킨", "name_en": "fried chicken", "category": "간식"},
+            {"name_ko": "라면", "name_en": "ramen", "category": "간식"},
+            {"name_ko": "샌드위치", "name_en": "sandwich", "category": "간식"},
+            {"name_ko": "토스트", "name_en": "toast", "category": "간식"},
+        ]
+
+        return Response({
+            "foods": POPULAR_FOODS,
+            "count": len(POPULAR_FOODS),
+            "message": "AI 인식이 정확하지 않다면 직접 선택해주세요"
+        })
+
+    @action(
+        detail=False,
         methods=["post"],
         url_path="meal-analyze",
         parser_classes=(MultiPartParser, FormParser, JSONParser),  # 멀티파트 우선
@@ -441,6 +489,7 @@ class AIViewSet(viewsets.ViewSet):
 
         # 3) 결과 파싱
         top_label = str(predictions[0].get("label", "")).strip()
+        best_score = 0.0
         try:
             best_score = float(predictions[0].get("score", 0.0))
         except Exception:
@@ -615,6 +664,10 @@ class AIViewSet(viewsets.ViewSet):
                         "threshold": threshold,
                         "allow_fallback_below": allow_fallback_below,
                         "fallback_kcal": fallback_kcal,
+                        "hf_top5_predictions": [
+                            {"label": p.get("label", ""), "score": float(p.get("score", 0.0))}
+                            for p in predictions[:5]
+                        ],
                         "weight_g": float(weight_g or 100.0),
                     },
                 },

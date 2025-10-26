@@ -38,37 +38,80 @@ FUZZY_CANDIDATES_LIMIT = int(getattr(settings, "FUZZY_CANDIDATES_LIMIT", 5))
 
 # ───────────────── 동의어(영→한) 매핑 ─────────────────
 EN_KO_SYNONYMS = {
+    # 버거/샌드위치류
     "hamburger": "햄버거",
     "cheeseburger": "치즈버거",
     "burger": "햄버거",
+    "sandwich": "샌드위치",
+    "hot dog": "핫도그",
+    "hotdog": "핫도그",
+
+    # 면류
     "spaghetti bolognese": "볼로네제 스파게티",
     "bolognese": "볼로네제",
     "spaghetti": "스파게티",
     "pasta": "파스타",
+    "noodle": "면",
     "carbonara": "까르보나라",
     "ramen": "라면",
+    "instant noodle": "라면",
     "udon": "우동",
     "soba": "소바",
-    "sushi": "스시",
-    "kimbap": "김밥",
-    "gimbap": "김밥",
+
+    # 추가 면 요리
+    "linguine": "파스타",
+    "fettuccine": "파스타",
+    "penne": "파스타",
+    "macaroni": "마카로니",
+
+    # 밥/덮밥류
+    "bibimbap": "비빔밥",
+    "fried rice": "볶음밥",
+    "rice": "밥",
+    "curry": "카레",
+    "curry and rice": "카레라이스",
+
+    # 고기류
+    "bulgogi": "불고기",
+    "steak": "스테이크",
     "fried chicken": "치킨",
     "chicken": "치킨",
     "pork cutlet": "돈까스",
     "tonkatsu": "돈까스",
     "donkatsu": "돈까스",
+    "beef": "소고기",
+    "pork": "돼지고기",
+
+    # 아시아 음식
+    "sushi": "스시",
+    "kimbap": "김밥",
+    "gimbap": "김밥",
     "tteokbokki": "떡볶이",
     "rice cake": "떡",
-    "bibimbap": "비빔밥",
-    "bulgogi": "불고기",
-    "yogurt": "요거트",
-    "sandwich": "샌드위치",
-    "steak": "스테이크",
+    "dumpling": "만두",
+
+    # 패스트푸드/간식
     "pizza": "피자",
-    "curry": "카레",
+    "french fries": "감자튀김",
+    "fries": "감자튀김",
+    "taco": "타코",
+
+    # 음료/디저트
+    "yogurt": "요거트",
+    "ice cream": "아이스크림",
+    "coffee": "커피",
+    "cake": "케이크",
+
+    # 과일
     "apple": "사과",
     "banana": "바나나",
-    "coffee": "커피",
+    "orange": "오렌지",
+    "strawberry": "딸기",
+
+    # 샐러드/건강식
+    "salad": "샐러드",
+    "soup": "수프",
+    "vegetable": "채소",
 }
 
 # ---------- 내부 유틸 ----------
@@ -528,7 +571,17 @@ def match_csv_entry(pred_label: str) -> Optional[Dict[str, object]]:
                 cand = [_normalize_label(x) for x in str(syn).replace(";", ",").split(",") if x.strip()]
                 if qn in cand:
                     return _row_to_entry(r)
-        # 4) 부분 포함(en/ko)
+        # 4) 시작하는 항목 우선 (더 정확한 매칭)
+        for r in rows:
+            if qn and (
+                _normalize_label(r.get("식품명") or "").startswith(qn) or
+                _normalize_label(r.get("대표식품명") or "").startswith(qn) or
+                _normalize_label(r.get("name_ko") or "").startswith(qn) or
+                _normalize_label(r.get("label_ko") or "").startswith(qn)
+            ):
+                return _row_to_entry(r)
+
+        # 5) 부분 포함(en/ko) - 시작 매칭 실패시
         for r in rows:
             if qn and (
                 qn in _normalize_label(r.get("name_en") or "") or
