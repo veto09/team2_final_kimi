@@ -10,12 +10,26 @@ class UserSerializer(serializers.ModelSerializer):
     """
     유저 기본 직렬화기
     - username/id는 읽기전용 (아이디 변경 방지)
+    - password는 쓰기 전용 (회원가입 시 필요)
     - is_active는 일반 PATCH로는 수정 불가(휴면/복구는 별도 액션에서 처리)
     """
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "is_active", "date_joined"]
-        read_only_fields = ["id", "username", "is_active", "date_joined"]
+        fields = ["id", "username", "email", "password", "first_name", "last_name", "is_active", "date_joined"]
+        read_only_fields = ["id", "is_active", "date_joined"]
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def create(self, validated_data):
+        """비밀번호 해싱하여 유저 생성"""
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
 
 # ---- 추가 끝 ----

@@ -1,0 +1,155 @@
+.
+├── ai
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── apps.py
+│   ├── food_lookup.py
+│   ├── hf.py
+│   ├── migrations
+│   ├── models.py
+│   ├── tests.py
+│   ├── urls.py
+│   ├── utils.py
+│   └── views.py
+├── conftest.py
+├── cookies.txt
+├── data.dev.json
+├── db.sqlite3
+├── deploy
+│   └── nginx
+├── directory.txt
+├── docker-compose.local.yml
+├── docker-compose.yml
+├── Dockerfile
+├── factories.py
+├── feedbacks
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── apps.py
+│   ├── migrations
+│   ├── models.py
+│   ├── serializers.py
+│   ├── services.py
+│   ├── tests
+│   ├── urls.py
+│   └── views.py
+├── frontend
+│   └── SignupPage.tsx
+├── goals
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── apps.py
+│   ├── migrations
+│   ├── models.py
+│   ├── serializers.py
+│   ├── tests
+│   ├── urls.py
+│   └── views.py
+├── intake
+│   └── migrations
+├── intakes
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── apps.py
+│   ├── data
+│   ├── management
+│   ├── migrations
+│   ├── models.py
+│   ├── serializers.py
+│   ├── signals.py
+│   ├── tests
+│   ├── urls.py
+│   └── views.py
+├── manage.py
+├── media
+│   └── meals
+├── nginx.compose.yml
+├── olddata.json
+├── openapi.json
+├── prometheus.yml
+├── pytest.ini
+├── README.md
+├── requirements.txt
+├── static
+│   ├── css
+│   ├── data
+│   ├── favicon.ico
+│   ├── img
+│   ├── js
+│   └── media
+├── staticfiles
+│   ├── admin
+│   ├── css
+│   ├── data
+│   ├── drf_spectacular_sidecar
+│   ├── favicon.ico
+│   ├── img
+│   ├── js
+│   ├── media
+│   └── rest_framework
+├── structure.txt
+├── tasks
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── api_views.py
+│   ├── apps.py
+│   ├── fixtures
+│   ├── management
+│   ├── migrations
+│   ├── models.py
+│   ├── serializers.py
+│   ├── tests
+│   ├── urls.py
+│   └── views.py
+├── team2_final
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── asgi.py
+│   ├── auth_views.py
+│   ├── healthz.py
+│   ├── settings.py
+│   ├── static
+│   ├── today_views.py
+│   ├── urls.py
+│   ├── views.py
+│   └── wsgi.py
+├── templates
+│   ├── base.html
+│   ├── example.html
+│   ├── feedbacks
+│   ├── landing.html
+│   ├── partials
+│   ├── registration
+│   ├── tasks
+│   └── users
+├── users
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── migrations
+│   ├── models.py
+│   ├── oauth_views.py
+│   ├── serializers.py
+│   ├── tests
+│   ├── urls.py
+│   └── views.py
+├── utils
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── errors.py
+│   ├── exceptions.py
+│   └── responses.py
+└── venv
+    ├── bin
+    ├── include
+    ├── lib
+    └── pyvenv.cfg
+
+65 directories, 88 files

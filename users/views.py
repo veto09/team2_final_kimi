@@ -36,9 +36,9 @@ class IsSelfOrAdmin(permissions.BasePermission):
 
 class UserViewSet(viewsets.ModelViewSet):
     """
-    사용자 뷰셋 (JWT 필요)
+    사용자 뷰셋
+    - 생성(회원가입): 인증 불필요 (AllowAny)
     - 목록/상세: 관리자만 전체, 일반 사용자는 자기 자신만
-    - 생성: 기본은 관리자만(일반 회원가입은 별도 엔드포인트로 빼는 게 보통)
     - 수정/삭제: 자기 자신만, 또는 관리자
     - 비활성화(휴면)/재활성화: 커스텀 액션 제공
     """
@@ -46,16 +46,20 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        """회원가입(create)은 인증 불필요"""
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     # ---- 공통 쿼리셋 제한 ----
     def get_queryset(self):
         if self.request.user.is_staff:
             return User.objects.all()
         return User.objects.filter(id=self.request.user.id)
 
-    # ---- 생성: 기본은 관리자만 허용(원하면 회원가입 전용 API 따로 만드세요) ----
+    # ---- 생성: 회원가입 (인증 불필요) ----
     def create(self, request, *args, **kwargs):
-        if not request.user.is_staff:
-            return Response({"detail": "관리자만 사용자 생성이 가능합니다."}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
     # ---- 부분 수정/전체 수정: 자기 자신 또는 관리자 ----
